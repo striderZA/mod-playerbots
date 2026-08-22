@@ -128,6 +128,25 @@ namespace NaxxSpellIds
     SPELL_INEVITABLE_DOOM                       = 29204,
     SPELL_BERSERK                               = 26662
 */
+    // Maexxna
+    static constexpr uint32 WebSpray = 29484;
+    static constexpr uint32 PoisonShock = 28741;
+    static constexpr uint32 NecroticPoison = 54121;
+    static constexpr uint32 Frenzy = 54123;
+    static constexpr uint32 WebWrapStun = 28622;
+    static constexpr uint32 WebWrapSummon = 28627;
+    static constexpr uint32 WebWrapKillWebs = 52512;
+    static constexpr uint32 WebWrapPacify5 = 28618;
+/*
+    SPELL_WEB_SPRAY                     = 29484,
+    SPELL_POISON_SHOCK                  = 28741,
+    SPELL_NECROTIC_POISON               = 54121,
+    SPELL_FRENZY                        = 54123,
+    SPELL_WEB_WRAP_STUN                 = 28622,
+    SPELL_WEB_WRAP_SUMMON               = 28627,
+    SPELL_WEB_WRAP_KILL_WEBS            = 52512,
+    SPELL_WEB_WRAP_PACIFY_5             = 28618 // 5 seconds pacify silence
+*/
     inline bool HasAnyAura(Unit* unit, std::initializer_list<uint32> spellIds)
     {
         if (!unit)

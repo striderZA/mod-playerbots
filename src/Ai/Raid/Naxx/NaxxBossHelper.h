@@ -341,6 +341,121 @@ private:
     uint32 _combat_start_ms = 0;
 };
 
+class MaexxnaBossHelper : public AiObject
+{
+public:
+    // Creature entries (local copies of core naxxramas.h NPC_ values).
+    static constexpr uint32 NPC_WEB_WRAP = 16486;
+    static constexpr uint32 NPC_MAEXXNA_SPIDERLING = 17055;
+
+    MaexxnaBossHelper(PlayerbotAI* botAI) : AiObject(botAI) {}
+    bool UpdateBossAI()
+    {
+        if (!bot->IsInCombat())
+            Reset();
+
+        if (_unit && (!_unit->IsInWorld() || !_unit->IsAlive()))
+            Reset();
+
+        if (!_unit)
+        {
+            _unit = AI_VALUE2(Unit*, "find target", "maexxna");
+            if (!_unit)
+                return false;
+        }
+
+        if (_unit->IsInCombat())
+        {
+            if (_combat_start_ms == 0)
+                _combat_start_ms = getMSTime();
+        }
+        else
+            _combat_start_ms = 0;
+
+        return true;
+    }
+    Unit* GetBoss() const
+    {
+        if (!_unit || !_unit->IsInWorld() || !_unit->IsAlive())
+            return nullptr;
+
+        return _unit;
+    }
+    // Web Spray / Frenzy are self-casts by the boss; detect by aura or current spell, with spell-name fallback.
+    bool IsWebSprayActive() { return HasSpellOrAura(NaxxSpellIds::WebSpray, "web spray"); }
+    bool IsFrenzyActive() { return HasSpellOrAura(NaxxSpellIds::Frenzy, "frenzy"); }
+    // Web Wrap / Necrotic Poison are player-facing; the caller supplies the unit each tick (never retained).
+    bool HasWebWrap(Unit* unit) const
+    {
+        return NaxxSpellIds::HasAnyAura(
+            unit, {NaxxSpellIds::WebWrapStun, NaxxSpellIds::WebWrapSummon, NaxxSpellIds::WebWrapPacify5});
+    }
+    bool HasNecroticPoison(Unit* unit) const
+    {
+        return NaxxSpellIds::HasAnyAura(unit, {NaxxSpellIds::NecroticPoison});
+    }
+    bool JustStartCombat() const { return _combat_start_ms != 0 && getMSTime() - _combat_start_ms < 10000; }
+    // Core schedule: first cast at 20s, then every 40s; conservative window around each cast.
+    bool WebWrapDue() const { return DueWithinSchedule(20000, 40000); }
+    // Core schedule: first cast at 40s, then every 40s; conservative window around each cast.
+    bool WebSprayDue() const { return DueWithinSchedule(40000, 40000); }
+    // Core schedule: first cast at 30s, then every 40s; conservative window around each cast.
+    bool SpiderlingsDue() const { return DueWithinSchedule(30000, 40000); }
+
+private:
+    bool HasSpellOrAura(uint32 spellId, const char* spellName)
+    {
+        Unit* boss = GetBoss();
+        if (!boss)
+            return false;
+
+        if (NaxxSpellIds::HasAnyAura(boss, {spellId}))
+            return true;
+
+        if (!boss->HasUnitState(UNIT_STATE_CASTING))
+            return false;
+
+        Spell* spell = boss->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+        if (!spell)
+            spell = boss->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+
+        if (!spell)
+            return false;
+
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!info)
+            return false;
+
+        if (info->Id == spellId)
+            return true;
+
+        // Fallback to name for custom spell data.
+        return info->SpellName[LOCALE_enUS] && botAI->EqualLowercaseName(info->SpellName[LOCALE_enUS], spellName);
+    }
+    // True while the fight time is within a conservative window of a scheduled cast.
+    bool DueWithinSchedule(uint32 firstMs, uint32 intervalMs) const
+    {
+        if (!_combat_start_ms)
+            return false;
+
+        uint32 elapsed = getMSTime() - _combat_start_ms;
+        if (elapsed + SCHEDULE_WINDOW_MS < firstMs)
+            return false;
+
+        uint32 phase = (elapsed + SCHEDULE_WINDOW_MS - firstMs) % intervalMs;
+        return phase < 2 * SCHEDULE_WINDOW_MS;
+    }
+    void Reset()
+    {
+        _unit = nullptr;
+        _combat_start_ms = 0;
+    }
+
+    static constexpr uint32 SCHEDULE_WINDOW_MS = 5000;
+    Unit* _unit = nullptr;
+    uint32 _combat_start_ms = 0;
+};
+
 class LoathebBossHelper : public AiObject
 {
 public:
