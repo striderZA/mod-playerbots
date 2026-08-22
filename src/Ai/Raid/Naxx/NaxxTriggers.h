@@ -125,8 +125,11 @@ public:
 class MaexxnaTrigger : public Trigger
 {
 public:
-    MaexxnaTrigger(PlayerbotAI* ai) : Trigger(ai, "maexxna") {}
+    MaexxnaTrigger(PlayerbotAI* ai) : Trigger(ai, "maexxna"), helper(ai) {}
     bool IsActive() override;
+
+private:
+    MaexxnaBossHelper helper;
 };
 
 //class PatchwerkTankTrigger : public Trigger

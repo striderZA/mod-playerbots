@@ -198,8 +198,10 @@ bool FaerlinaTrigger::IsActive()
 
 bool MaexxnaTrigger::IsActive()
 {
-    Unit* boss = AI_VALUE2(Unit*, "find target", "maexxna");
-    if (!boss)
+    if (!helper.UpdateBossAI())
+        return false;
+
+    if (!helper.GetBoss())
         return false;
 
     return !botAI->IsTank(bot);

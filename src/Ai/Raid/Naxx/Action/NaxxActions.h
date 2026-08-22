@@ -302,6 +302,16 @@ private:
     GluthBossHelper helper;
 };
 
+class MaexxnaChooseTargetAction : public AttackAction
+{
+public:
+    MaexxnaChooseTargetAction(PlayerbotAI* ai) : AttackAction(ai, "maexxna choose target"), helper(ai) {}
+    bool Execute(Event event) override;
+
+private:
+    MaexxnaBossHelper helper;
+};
+
 class LoathebPositionAction : public MovementAction
 {
 public:
