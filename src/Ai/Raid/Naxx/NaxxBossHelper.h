@@ -21,6 +21,7 @@
 #include "Spell.h"
 #include "Timer.h"
 #include <string>
+#include <unordered_map>
 
 const uint32 NAXX_MAP_ID = 533;
 
@@ -351,35 +352,62 @@ public:
     MaexxnaBossHelper(PlayerbotAI* botAI) : AiObject(botAI) {}
     bool UpdateBossAI()
     {
-        if (!bot->IsInCombat())
-            Reset();
+        // Resolve the cached boss GUID only for this tick; never retain the raw pointer.
+        Unit* unit = botAI->GetUnit(_boss_guid);
 
-        if (_unit && (!_unit->IsInWorld() || !_unit->IsAlive()))
-            Reset();
-
-        if (!_unit)
+        // The cached boss is gone or dead (wipe/despawn): drop the shared start timestamp so a
+        // new pull starts fresh, then clear this helper's own cached state.
+        if (!_boss_guid.IsEmpty() && (!unit || !unit->IsInWorld() || !unit->IsAlive()))
         {
-            _unit = AI_VALUE2(Unit*, "find target", "maexxna");
-            if (!_unit)
-                return false;
+            s_combatStartMs.erase(_boss_guid);
+            Reset();
         }
 
-        if (_unit->IsInCombat())
+        // No cached boss: (re)locate it through the standard find-target strategy.
+        if (_boss_guid.IsEmpty())
         {
-            if (_combat_start_ms == 0)
-                _combat_start_ms = getMSTime();
+            Unit* boss = AI_VALUE2(Unit*, "find target", "maexxna");
+            if (!boss)
+                return false;
+
+            _boss_guid = boss->GetGUID();
+            unit = boss;
+        }
+
+        if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+            return false;
+
+        if (unit->IsInCombat())
+        {
+            // The first helper that observes the live boss in combat anchors the shared start
+            // timestamp; later bots read the same value regardless of their own combat flag.
+            uint32& shared = s_combatStartMs[_boss_guid];
+            if (!shared)
+                shared = getMSTime();
+
+            _combat_start_ms = shared;
         }
         else
+        {
+            // The boss itself is alive but out of combat: the pull is over, so erase the shared
+            // timestamp. One bot being out of combat never erases it on its own.
+            s_combatStartMs.erase(_boss_guid);
             _combat_start_ms = 0;
+        }
 
         return true;
     }
     Unit* GetBoss() const
     {
-        if (!_unit || !_unit->IsInWorld() || !_unit->IsAlive())
+        // Resolve the cached GUID on every call; return only a current-tick pointer.
+        if (_boss_guid.IsEmpty())
             return nullptr;
 
-        return _unit;
+        Unit* unit = botAI->GetUnit(_boss_guid);
+        if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+            return nullptr;
+
+        return unit;
     }
     // Web Spray / Frenzy are self-casts by the boss; detect by aura or current spell, with spell-name fallback.
     bool IsWebSprayActive() { return HasSpellOrAura(NaxxSpellIds::WebSpray, "web spray"); }
@@ -447,13 +475,19 @@ private:
     }
     void Reset()
     {
-        _unit = nullptr;
+        // Clears only this helper's GUID and local timestamp; the shared start timestamp is
+        // managed by UpdateBossAI, so it is never erased while another bot still fights the boss.
+        _boss_guid.Clear();
         _combat_start_ms = 0;
     }
 
     static constexpr uint32 SCHEDULE_WINDOW_MS = 5000;
-    Unit* _unit = nullptr;
+    ObjectGuid _boss_guid;
     uint32 _combat_start_ms = 0;
+
+    // Process-local fight start timestamps keyed by boss GUID, shared by every bot's helper so
+    // all bots anchor their schedules to the same fight start (inline: one entity per process).
+    static inline std::unordered_map<ObjectGuid, uint32> s_combatStartMs;
 };
 
 class LoathebBossHelper : public AiObject
