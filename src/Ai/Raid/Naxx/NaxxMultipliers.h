@@ -89,6 +89,16 @@ public:
     float GetValue(Action* action) override;
 };
 
+class MaexxnaGenericMultiplier : public Multiplier
+{
+public:
+    MaexxnaGenericMultiplier(PlayerbotAI* ai) : Multiplier(ai, "maexxna generic"), helper(ai) {}
+    float GetValue(Action* action) override;
+
+private:
+    MaexxnaBossHelper helper;
+};
+
 class FourHorsemenGenericMultiplier : public Multiplier
 {
 public:

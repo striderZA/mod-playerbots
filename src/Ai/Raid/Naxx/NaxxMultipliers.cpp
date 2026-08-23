@@ -250,6 +250,22 @@ float AnubrekhanGenericMultiplier::GetValue(Action* action)
     return 1.0f;
 }
 
+float MaexxnaGenericMultiplier::GetValue(Action* action)
+{
+    if (!helper.UpdateBossAI())
+        return 1.0f;
+
+    if (helper.IsWebSprayActive() || helper.WebSprayDue())
+    {
+        if (dynamic_cast<RearFlankAction*>(action) || dynamic_cast<AvoidAoeAction*>(action) ||
+            dynamic_cast<CombatFormationMoveAction*>(action))
+        {
+            return 0.0f;
+        }
+    }
+    return 1.0f;
+}
+
 float FourHorsemenGenericMultiplier::GetValue(Action* action)
 {
     Unit* boss = AI_VALUE2(Unit*, "find target", "sir zeliek");
