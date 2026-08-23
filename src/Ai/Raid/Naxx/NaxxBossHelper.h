@@ -20,6 +20,7 @@
 #include "SharedDefines.h"
 #include "Spell.h"
 #include "Timer.h"
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -359,7 +360,10 @@ public:
         // new pull starts fresh, then clear this helper's own cached state.
         if (!_boss_guid.IsEmpty() && (!unit || !unit->IsInWorld() || !unit->IsAlive()))
         {
-            s_combatStartMs.erase(_boss_guid);
+            {
+                std::lock_guard<std::mutex> lock(s_combatStartMsMutex);
+                s_combatStartMs.erase(_boss_guid);
+            }
             Reset();
         }
 
@@ -381,17 +385,23 @@ public:
         {
             // The first helper that observes the live boss in combat anchors the shared start
             // timestamp; later bots read the same value regardless of their own combat flag.
-            uint32& shared = s_combatStartMs[_boss_guid];
-            if (!shared)
-                shared = getMSTime();
+            {
+                std::lock_guard<std::mutex> lock(s_combatStartMsMutex);
+                uint32& shared = s_combatStartMs[_boss_guid];
+                if (!shared)
+                    shared = getMSTime();
 
-            _combat_start_ms = shared;
+                _combat_start_ms = shared;
+            }
         }
         else
         {
             // The boss itself is alive but out of combat: the pull is over, so erase the shared
             // timestamp. One bot being out of combat never erases it on its own.
-            s_combatStartMs.erase(_boss_guid);
+            {
+                std::lock_guard<std::mutex> lock(s_combatStartMsMutex);
+                s_combatStartMs.erase(_boss_guid);
+            }
             _combat_start_ms = 0;
         }
 
@@ -487,6 +497,8 @@ private:
 
     // Process-local fight start timestamps keyed by boss GUID, shared by every bot's helper so
     // all bots anchor their schedules to the same fight start (inline: one entity per process).
+    // Mutex guards every access: helpers can run on MapUpdater worker threads concurrently.
+    static inline std::mutex s_combatStartMsMutex;
     static inline std::unordered_map<ObjectGuid, uint32> s_combatStartMs;
 };
 
