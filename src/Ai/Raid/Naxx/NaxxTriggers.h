@@ -106,6 +106,7 @@ public:
 
 private:
     KelthuzadBossHelper helper;
+    bool cleanupPending = false;
 };
 
 class AnubrekhanTrigger : public Trigger

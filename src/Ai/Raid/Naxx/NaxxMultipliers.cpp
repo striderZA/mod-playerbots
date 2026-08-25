@@ -225,9 +225,9 @@ float KelthuzadGenericMultiplier::GetValue(Action* action)
     if (helper.IsPhaseOne())
     {
         if (dynamic_cast<CastTotemAction*>(action) || dynamic_cast<CastShadowfiendAction*>(action) ||
-            dynamic_cast<CastRaiseDeadAction*>(action) || dynamic_cast<CastFeignDeathAction*>(action) ||
-            dynamic_cast<CastInvisibilityAction*>(action) || dynamic_cast<CastVanishAction*>(action) ||
-            dynamic_cast<PetAttackAction*>(action))
+            dynamic_cast<CastRaiseDeadAction*>(action) || dynamic_cast<CastArmyOfTheDeadAction*>(action) ||
+            dynamic_cast<CastFeignDeathAction*>(action) || dynamic_cast<CastInvisibilityAction*>(action) ||
+            dynamic_cast<CastVanishAction*>(action) || dynamic_cast<PetAttackAction*>(action))
         {
             return 0.0f;
         }
@@ -239,6 +239,17 @@ float KelthuzadGenericMultiplier::GetValue(Action* action)
 
     }
     return 1.0f;
+}
+
+float KelthuzadDelayBloodlustAndHeroismMultiplier::GetValue(Action* action)
+{
+    if (!dynamic_cast<CastBloodlustAction*>(action) && !dynamic_cast<CastHeroismAction*>(action))
+        return 1.0f;
+
+    if (!helper.UpdateBossAI())
+        return 1.0f;
+
+    return helper.IsPhaseThree() ? 1.0f : 0.0f;
 }
 
 float AnubrekhanGenericMultiplier::GetValue(Action* action)

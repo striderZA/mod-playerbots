@@ -177,7 +177,22 @@ bool GluthMainTankMortalWoundTrigger::IsActive()
     return true;
 }
 
-bool KelthuzadTrigger::IsActive() { return helper.UpdateBossAI(); }
+bool KelthuzadTrigger::IsActive()
+{
+    if (helper.UpdateBossAI())
+    {
+        cleanupPending = true;
+        return true;
+    }
+
+    if (cleanupPending)
+    {
+        cleanupPending = false;
+        return true;
+    }
+
+    return false;
+}
 
 bool AnubrekhanTrigger::IsActive() {
     Unit* boss = AI_VALUE2(Unit*, "find target", "anub'rekhan");

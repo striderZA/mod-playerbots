@@ -155,6 +155,7 @@ void RaidNaxxStrategy::InitMultipliers(std::vector<Multiplier*>& multipliers)
     multipliers.push_back(new SapphironGenericMultiplier(botAI));
     multipliers.push_back(new InstructorRazuviousGenericMultiplier(botAI));
     multipliers.push_back(new KelthuzadGenericMultiplier(botAI));
+    multipliers.push_back(new KelthuzadDelayBloodlustAndHeroismMultiplier(botAI));
     multipliers.push_back(new AnubrekhanGenericMultiplier(botAI));
     multipliers.push_back(new MaexxnaGenericMultiplier(botAI));
     multipliers.push_back(new FourHorsemenGenericMultiplier(botAI));

@@ -14,6 +14,8 @@
 #include "NaxxBossHelper.h"
 #include "PlayerbotAI.h"
 #include "Playerbots.h"
+#include <utility>
+#include <vector>
 
 class GrobbulusGoBehindAction : public MovementAction
 {
@@ -253,7 +255,11 @@ public:
     virtual bool Execute(Event event);
 
 private:
+    void SuppressControlledUnits();
+    void RestoreControlledUnits();
+
     KelthuzadBossHelper helper;
+    std::vector<std::pair<ObjectGuid, ReactStates>> phaseOneControlledUnitStates;
 };
 
 class AnubrekhanChooseTargetAction : public AttackAction

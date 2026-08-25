@@ -103,6 +103,7 @@ public:
     }
     bool IsPhaseOne() { return _unit && _unit->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE); }
     bool IsPhaseTwo() { return _unit && !_unit->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE); }
+    bool IsPhaseThree() { return _unit && _unit->HealthBelowPct(45); }
     Unit* GetAnyShadowFissure()
     {
         Unit* shadow_fissure = nullptr;

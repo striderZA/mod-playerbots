@@ -5,6 +5,9 @@
  */
 
 #include "NaxxActions.h"
+#include "CharmInfo.h"
+#include "Creature.h"
+#include "Pet.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 
@@ -107,19 +110,78 @@ bool KelthuzadChooseTargetAction::Execute(Event /*event*/)
     return Attack(target, false);
 }
 
+void KelthuzadPositionAction::SuppressControlledUnits()
+{
+    auto suppress = [this](Creature* creature)
+    {
+        if (!creature || creature->IsTotem() || !creature->IsAlive())
+            return;
+
+        for (auto const& saved : phaseOneControlledUnitStates)
+        {
+            if (saved.first == creature->GetGUID())
+                return;
+        }
+
+        phaseOneControlledUnitStates.emplace_back(creature->GetGUID(), creature->GetReactState());
+        creature->SetReactState(REACT_PASSIVE);
+        creature->AttackStop();
+        creature->InterruptNonMeleeSpells(true);
+        creature->CombatStop();
+        creature->SetTarget(ObjectGuid::Empty);
+        if (CharmInfo* charmInfo = creature->GetCharmInfo())
+        {
+            charmInfo->SetPlayerReactState(REACT_PASSIVE);
+            creature->GetMotionMaster()->MoveFollow(bot, PET_FOLLOW_DIST, creature->GetFollowAngle());
+            charmInfo->SetCommandState(COMMAND_FOLLOW);
+            charmInfo->SetIsCommandAttack(false);
+            charmInfo->SetIsAtStay(false);
+            charmInfo->SetIsReturning(true);
+            charmInfo->SetIsFollowing(true);
+        }
+    };
+
+    if (Pet* pet = bot->GetPet())
+        suppress(pet);
+
+    for (Unit* controlled : bot->m_Controlled)
+        suppress(controlled ? controlled->ToCreature() : nullptr);
+}
+
+void KelthuzadPositionAction::RestoreControlledUnits()
+{
+    for (auto const& saved : phaseOneControlledUnitStates)
+    {
+        Creature* creature = botAI->GetCreature(saved.first);
+        if (!creature)
+            continue;
+
+        creature->SetReactState(saved.second);
+        if (CharmInfo* charmInfo = creature->GetCharmInfo())
+            charmInfo->SetPlayerReactState(saved.second);
+    }
+
+    phaseOneControlledUnitStates.clear();
+}
+
 bool KelthuzadPositionAction::Execute(Event /*event*/)
 {
     if (!helper.UpdateBossAI())
+    {
+        RestoreControlledUnits();
         return false;
+    }
 
     if (helper.IsPhaseOne())
     {
+        SuppressControlledUnits();
         if (AI_VALUE(Unit*, "current target") == nullptr)
             return MoveInside(NAXX_MAP_ID, helper.center.first, helper.center.second, bot->GetPositionZ(), 3.0f,
                               MovementPriority::MOVEMENT_COMBAT);
     }
     else if (helper.IsPhaseTwo())
     {
+        RestoreControlledUnits();
         Unit* shadow_fissure = helper.GetAnyShadowFissure();
         if (!shadow_fissure || !bot->IsWithinDistInMap(shadow_fissure, 10.0f))
         {
@@ -162,6 +224,45 @@ bool KelthuzadPositionAction::Execute(Event /*event*/)
                 }
                 else
                     return false;
+            }
+            else if (botAI->IsMelee(bot) && botAI->IsDps(bot))
+            {
+                Difficulty const difficulty = bot->GetRaidDifficulty();
+                if (difficulty != RAID_DIFFICULTY_25MAN_NORMAL && difficulty != RAID_DIFFICULTY_25MAN_HEROIC)
+                    return false;
+
+                Group* group = bot->GetGroup();
+                if (!group)
+                    return false;
+
+                int32 meleeIndex = -1;
+                int32 meleeDpsCount = 0;
+                for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                {
+                    Player* member = ref->GetSource();
+                    if (!member || !botAI->IsMelee(member) || !botAI->IsDps(member))
+                        continue;
+
+                    if (member == bot)
+                        meleeIndex = meleeDpsCount;
+                    ++meleeDpsCount;
+                }
+
+                if (meleeIndex < 0)
+                    return false;
+
+                // Spell 27808 uses a 10-yard destination radius. An 8-yard ring keeps up to four
+                // melee slots outside that radius while remaining attackable; larger melee rosters
+                // cannot satisfy both constraints without composition-specific ranged assignment.
+                constexpr float meleeDistance = 8.0f;
+                float const slotAngle = 2.0f * M_PI / meleeDpsCount;
+                float const tankAngle = std::atan2(helper.tank_pos.second - helper.center.second,
+                                                   helper.tank_pos.first - helper.center.first);
+                angle = tankAngle - slotAngle / 2.0f + meleeIndex * slotAngle;
+                float const dx = helper.center.first + std::cos(angle) * meleeDistance;
+                float const dy = helper.center.second + std::sin(angle) * meleeDistance;
+                return MoveTo(NAXX_MAP_ID, dx, dy, bot->GetPositionZ(), false, false, false, false,
+                              MovementPriority::MOVEMENT_COMBAT);
             }
         }
         else

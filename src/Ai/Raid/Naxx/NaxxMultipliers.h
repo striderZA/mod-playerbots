@@ -80,6 +80,19 @@ private:
     KelthuzadBossHelper helper;
 };
 
+class KelthuzadDelayBloodlustAndHeroismMultiplier : public Multiplier
+{
+public:
+    KelthuzadDelayBloodlustAndHeroismMultiplier(PlayerbotAI* ai)
+        : Multiplier(ai, "kelthuzad delay bloodlust and heroism"), helper(ai)
+    {
+    }
+    float GetValue(Action* action) override;
+
+private:
+    KelthuzadBossHelper helper;
+};
+
 class AnubrekhanGenericMultiplier : public Multiplier
 {
 public:
