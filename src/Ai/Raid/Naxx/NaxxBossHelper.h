@@ -244,7 +244,7 @@ public:
             else
             {
                 if (index % 3 == 0)
-                    angle = bot->GetAngle(currentTarget);
+                    angle = bot->GetAngle(currentTarget) + M_PI;
                 else if (index % 3 == 1)
                     angle = bot->GetAngle(currentTarget) + M_PI / 2;
                 else
