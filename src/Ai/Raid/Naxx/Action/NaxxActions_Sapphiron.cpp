@@ -15,6 +15,15 @@ bool SapphironGroundPositionAction::Execute(Event /*event*/)
     if (!helper.UpdateBossAI())
         return false;
 
+    // Non-tanks leave Chill/Blizzard before routine role placement; generic
+    // rear flank / avoid aoe keep covering dragon cone and area debuffs.
+    if (!botAI->IsMainTank(bot))
+    {
+        std::vector<float> dest;
+        if (helper.FindPosToAvoidChill(dest))
+            return MoveTo(NAXX_MAP_ID, dest[0], dest[1], dest[2], false, false, false, false, MovementPriority::MOVEMENT_COMBAT);
+    }
+
     if (botAI->IsMainTank(bot))
     {
         if (AI_VALUE2(bool, "has aggro", "current target"))
@@ -44,12 +53,7 @@ bool SapphironGroundPositionAction::Execute(Event /*event*/)
 
         return MoveInside(NAXX_MAP_ID, posX, posY, helper.GENERIC_HEIGHT, 2.0f, MovementPriority::MOVEMENT_COMBAT);
     }
-    else
-    {
-        std::vector<float> dest;
-        if (helper.FindPosToAvoidChill(dest))
-            return MoveTo(NAXX_MAP_ID, dest[0], dest[1], dest[2], false, false, false, false, MovementPriority::MOVEMENT_COMBAT);
-    }
+
     return false;
 }
 
