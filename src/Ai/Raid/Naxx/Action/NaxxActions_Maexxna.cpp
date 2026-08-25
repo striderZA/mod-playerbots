@@ -8,6 +8,7 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "SharedDefines.h"
+#include <list>
 
 bool MaexxnaChooseTargetAction::Execute(Event /*event*/)
 {
@@ -41,6 +42,17 @@ bool MaexxnaChooseTargetAction::Execute(Event /*event*/)
                 target_spiderling = unit;
         }
     }
+    if (!target_wrap)
+    {
+        std::list<Creature*> web_wraps;
+        boss->GetCreatureListWithEntryInGrid(web_wraps, helper.NPC_WEB_WRAP, 200.0f);
+        for (Creature* web_wrap : web_wraps)
+        {
+            if (web_wrap && web_wrap->IsAlive() &&
+                (!target_wrap || bot->GetDistance2d(web_wrap) < bot->GetDistance2d(target_wrap)))
+                target_wrap = web_wrap;
+        }
+    }
 
     Unit* target = nullptr;
     if (botAI->IsMainTank(bot))
@@ -57,6 +69,13 @@ bool MaexxnaChooseTargetAction::Execute(Event /*event*/)
 
     if (target == boss)
         return Attack(target, true);
+
+    // Keep direct damage actions on the Web Wrap while moving into line of sight.
+    if (!bot->IsWithinLOSInMap(target))
+    {
+        context->GetValue<Unit*>("current target")->Set(target);
+        return MoveToLOS(target, botAI->IsRanged(bot));
+    }
 
     return Attack(target, false);
 }
