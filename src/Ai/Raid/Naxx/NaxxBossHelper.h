@@ -168,6 +168,9 @@ public:
             _unit = AI_VALUE2(Unit*, "find target", "sapphiron");
             if (!_unit)
                 return false;
+
+            if (!_unit->IsFlying())
+                _last_land_ms = getMSTime();
         }
         bool now_flying = _unit->IsFlying();
         if (_was_flying && !now_flying)
