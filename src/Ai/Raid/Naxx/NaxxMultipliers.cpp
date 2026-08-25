@@ -186,6 +186,13 @@ float SapphironGenericMultiplier::GetValue(Action* action)
     if (dynamic_cast<CastDeathGripAction*>(action) || dynamic_cast<CombatFormationMoveAction*>(action))
         return 0.0f;
 
+    if (helper.IsPhaseFlight() &&
+        (dynamic_cast<DpsAssistAction*>(action) || dynamic_cast<TankAssistAction*>(action) ||
+         dynamic_cast<ReachTargetAction*>(action) || dynamic_cast<CastReachTargetSpellAction*>(action)))
+    {
+        return 0.0f;
+    }
+
     return 1.0f;
 }
 
