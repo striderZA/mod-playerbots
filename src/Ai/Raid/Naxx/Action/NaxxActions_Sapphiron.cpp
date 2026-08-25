@@ -9,6 +9,7 @@
 #include "NaxxSpellIds.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
+#include <limits>
 
 bool SapphironGroundPositionAction::Execute(Event /*event*/)
 {
@@ -62,14 +63,14 @@ bool SapphironFlightPositionAction::Execute(Event /*event*/)
     if (!helper.UpdateBossAI())
         return false;
 
-    if (helper.WaitForExplosion())
-        return MoveToNearestIcebolt();
-    else
-    {
-        std::vector<float> dest;
-        if (helper.FindPosToAvoidChill(dest))
-            return MoveTo(NAXX_MAP_ID, dest[0], dest[1], dest[2], false, false, false, false, MovementPriority::MOVEMENT_COMBAT);
-    }
+    if (helper.IceboltsReady() && MoveToNearestIcebolt())
+        return true;
+
+    std::vector<float> dest;
+    if (helper.FindPosToAvoidChill(dest))
+        return MoveTo(NAXX_MAP_ID, dest[0], dest[1], dest[2], false, false, false, false,
+                      MovementPriority::MOVEMENT_COMBAT);
+
     return false;
 }
 
@@ -80,33 +81,34 @@ bool SapphironFlightPositionAction::MoveToNearestIcebolt()
         return false;
 
     Player* playerWithIcebolt = nullptr;
-    float minDistance;
+    float minDistance = std::numeric_limits<float>::max();
     for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
     {
         Player* member = ref->GetSource();
+        if (!member || !member->IsInWorld() || !member->IsAlive() || member == bot)
+            continue;
+
         if (NaxxSpellIds::HasAnyAura(member, {NaxxSpellIds::Icebolt10, NaxxSpellIds::Icebolt25}) ||
             botAI->HasAura("icebolt", member, false, false, -1, true))
         {
-            if (!playerWithIcebolt || minDistance > bot->GetDistance(member))
+            if (minDistance > bot->GetDistance(member))
             {
                 playerWithIcebolt = member;
                 minDistance = bot->GetDistance(member);
             }
         }
     }
-    if (playerWithIcebolt)
+    Unit* boss = AI_VALUE2(Unit*, "find target", "sapphiron");
+    if (playerWithIcebolt && boss)
     {
-        Unit* boss = AI_VALUE2(Unit*, "find target", "sapphiron");
-        if (boss)
-        {
-            float angle = boss->GetAngle(playerWithIcebolt);
-            float posX = playerWithIcebolt->GetPositionX() + cos(angle) * 3.0f;
-            float posY = playerWithIcebolt->GetPositionY() + sin(angle) * 3.0f;
-            if (MoveTo(NAXX_MAP_ID, posX, posY, helper.GENERIC_HEIGHT, false, false, false, false, MovementPriority::MOVEMENT_COMBAT))
-                return true;
+        float angle = boss->GetAngle(playerWithIcebolt);
+        float posX = playerWithIcebolt->GetPositionX() + cos(angle) * 3.0f;
+        float posY = playerWithIcebolt->GetPositionY() + sin(angle) * 3.0f;
+        float posZ = playerWithIcebolt->GetPositionZ();
+        if (MoveTo(NAXX_MAP_ID, posX, posY, posZ, false, false, false, false, MovementPriority::MOVEMENT_COMBAT))
+            return true;
 
-            return MoveNear(playerWithIcebolt, 3.0f, MovementPriority::MOVEMENT_COMBAT);
-        }
+        return MoveNear(playerWithIcebolt, 3.0f, MovementPriority::MOVEMENT_COMBAT);
     }
     return false;
 }

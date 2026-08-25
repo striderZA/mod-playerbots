@@ -188,7 +188,7 @@ public:
 
         return getMSTime() - _last_land_ms <= POSITION_TIME_AFTER_LANDED;
     }
-    bool WaitForExplosion()
+    bool IceboltsReady()
     {
         if (!IsPhaseFlight())
             return false;
@@ -197,17 +197,19 @@ public:
         if (!group)
             return false;
 
+        uint32 targetCount = 0;
         for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
         {
             Player* member = ref->GetSource();
-            if (member &&
+            if (member && member->IsInWorld() && member->IsAlive() &&
                 (NaxxSpellIds::HasAnyAura(member, {NaxxSpellIds::Icebolt10, NaxxSpellIds::Icebolt25}) ||
                  botAI->HasAura("icebolt", member, false, false, -1, true)))
             {
-                return true;
+                ++targetCount;
             }
         }
-        return false;
+        uint32 requiredTargets = bot->GetRaidDifficulty() == RAID_DIFFICULTY_25MAN_NORMAL ? 3 : 2;
+        return targetCount >= requiredTargets;
     }
     bool FindPosToAvoidChill(std::vector<float>& dest)
     {
